@@ -1,98 +1,69 @@
-# CarND-Controls-PID
-Self-Driving Car Engineer Nanodegree Program
+#**PID Controller Project** 
+---
+
+This project is the fouth project of Udacity Self-driving Car Nanodegree Term2. The goals / steps of this project are the following:
+
+* Use PID controller to control the handling and throttle of the car on the simulator
+* Test that the model successfully drives around track one without leaving the road
+* Summarize the results with a written report
+
+
+[//]: # (Image References)
+
+[video1]: ./results/PID_NoD.mp4 "P controller"
+[video2]: ./results/PID_BigD.mp4 "Big D controller"
+[video3]: ./results/PID.mp4 "PID controller"
+[video3]: ./results/PID_Slowdown.mp4 "PID Slow Down controller"
 
 ---
 
-## Dependencies
+### How to build the program
+There is a [guide](https://github.com/simonchu47/CarND-PID-Control-Project/blob/master/HOWTO.md) showing how to prepare the environment and build the program.
 
-* cmake >= 3.5
- * All OSes: [click here for installation instructions](https://cmake.org/install/)
-* make >= 4.1(mac, linux), 3.81(Windows)
-  * Linux: make is installed by default on most Linux distros
-  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
-  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
-* gcc/g++ >= 5.4
-  * Linux: gcc / g++ is installed by default on most Linux distros
-  * Mac: same deal as make - [install Xcode command line tools]((https://developer.apple.com/xcode/features/)
-  * Windows: recommend using [MinGW](http://www.mingw.org/)
-* [uWebSockets](https://github.com/uWebSockets/uWebSockets)
-  * Run either `./install-mac.sh` or `./install-ubuntu.sh`.
-  * If you install from source, checkout to commit `e94b6e1`, i.e.
-    ```
-    git clone https://github.com/uWebSockets/uWebSockets 
-    cd uWebSockets
-    git checkout e94b6e1
-    ```
-    Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
-* Simulator. You can download these from the [project intro page](https://github.com/udacity/self-driving-car-sim/releases) in the classroom.
+### The effects of the P, I, D components
 
-There's an experimental patch for windows in this [PR](https://github.com/udacity/CarND-PID-Control-Project/pull/3)
+####1. P component effect on handling/throttle
 
-## Basic Build Instructions
+Too large Kp for the handling controller will cause the car serpentine repeadly, and eventually out of control. But inversely, small Kp will let the car response slowly, and usually cause the car to leave the road on a curve. I found that without Kd component support, the handling controller only with Kp component always lead to an unstable situation.
 
-1. Clone this repo.
-2. Make a build directory: `mkdir build && cd build`
-3. Compile: `cmake .. && make`
-4. Run it: `./pid`. 
+It seems to be easier for throttle controller. Large Kp, 1.0 to 100.0 that I have tried and the target speed 30MPH without Ki for the throttle controller never cause the car's speed to fluctuate too much around the target. But too small Kp(below 1.0) will let the car hardly achieve the speed target.
 
-Tips for setting up your environment can be found [here](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/0949fca6-b379-42af-a919-ee50aa304e6a/lessons/f758c44c-5e40-4e01-93b5-1a82aa4e044f/concepts/23d376c7-0195-4276-bdf0-e02f1f3c665d)
+The following video shows the driving with a PID handling controller only with the P component. It serpentines soon after start.
+[video1]
 
-## Editor Settings
 
-We've purposefully kept editor configuration files out of this repo in order to
-keep it as simple and environment agnostic as possible. However, we recommend
-using the following settings:
+####2. D component effect on handling/throttle
 
-* indent using spaces
-* set tab width to 2 spaces (keeps the matrices in source code aligned)
+D component plays a role like prediction of the error trend. A suitable Kd value can help the handling controller be convergent rapidly on the cte. But inversely a too large Kd value also leads to an unstable situation.
+The D component effect on the throttle is not so significant, for the reason that just the P component could perform very well.
 
-## Code Style
+The following video shows the driving with a PID handling controller with a too large D(500 times Kp) component. It also becomes unstable soon after start.
+[video2]
 
-Please (do your best to) stick to [Google's C++ style guide](https://google.github.io/styleguide/cppguide.html).
 
-## Project Instructions and Rubric
+####3. I component effect on handling/throttle
 
-Note: regardless of the changes you make, your project must be buildable using
-cmake and make!
+I hardly found that Ki can have any effect on both the handling and throttle controllers. I thought that it might be the reason that the simulation situation is not a straight road, and the accumulated error will soon amplified by Ki, which will very easy to let the system become unstable.
 
-More information is only accessible by people who are already enrolled in Term 2
-of CarND. If you are enrolled, see [the project page](https://classroom.udacity.com/nanodegrees/nd013/parts/40f38239-66b6-46ec-ae68-03afd8a601c8/modules/f1820894-8322-4bb3-81aa-b26b3c6dcbaf/lessons/e8235395-22dd-4b87-88e0-d108c5e5bbf4/concepts/6a4d8d42-6a04-4aa6-b284-1697c0fd6562)
-for instructions and the project rubric.
+###The final hyperparameters
 
-## Hints!
+####1. Twiddle algorithm
 
-* You don't have to follow this directory structure, but if you do, your work
-  will span all of the .cpp files here. Keep an eye out for TODOs.
+I design a state machine inside the PID class to perfom the TWIDDLE algorithm. We can decide how long we will let the simulator to run for collecting the error data and reset again and again until the algorithm gets the optimized parameters, which are according to our set condition like the sum of all the k stepping value below some value. 
 
-## Call for IDE Profiles Pull Requests
+The following video shows the driving with a handling and a throttle PID controller, and all the k values except ki are derived from the TWIDDLE.
+[video3]
 
-Help your fellow students!
+####2. Manually Setting
 
-We decided to create Makefiles with cmake to keep this project as platform
-agnostic as possible. Similarly, we omitted IDE profiles in order to we ensure
-that students don't feel pressured to use one IDE or another.
+The TWIDDLE algorithm always decides a 0.0 value of Ki, and I will manually give it a very small value.
 
-However! I'd love to help people get up and running with their IDEs of choice.
-If you've created a profile for an IDE that you think other students would
-appreciate, we'd love to have you add the requisite profile files and
-instructions to ide_profiles/. For example if you wanted to add a VS Code
-profile, you'd add:
+####3. Slow down at curve
 
-* /ide_profiles/vscode/.vscode
-* /ide_profiles/vscode/README.md
+I design an experimental method to mimic the human behavioral model, that we will slow down when the car seems to lose control. When the cte goes high, by the method, the target speed will be set lower. It works, as the following video.
 
-The README should explain what the profile does, how to take advantage of it,
-and how to install it.
+Besides, all the PID value for both the handling and throttle controllers are derived from the TWIDDLE algorithm, except the Ki.
+[video4]
 
-Frankly, I've never been involved in a project with multiple IDE profiles
-before. I believe the best way to handle this would be to keep them out of the
-repo root to avoid clutter. My expectation is that most profiles will include
-instructions to copy files to a new location to get picked up by the IDE, but
-that's just a guess.
 
-One last note here: regardless of the IDE used, every submitted project must
-still be compilable with cmake and make./
-
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
 
